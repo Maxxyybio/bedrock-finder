@@ -1,0 +1,13 @@
+{
+  "name": "@bedrock-finder/shared",
+  "version": "1.0.0",
+  "main": "dist/bedrock.js",
+  "types": "dist/bedrock.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
+}
