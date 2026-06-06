@@ -1,40 +1,43 @@
 import { useState } from "react";
 import type { Grid, Edition } from "@bedrock-finder/shared";
-import { JAVA_FLOOR_Y, JAVA_MAX_Y, BEDROCK_FLOOR_Y, BEDROCK_MAX_Y } from "@bedrock-finder/shared";
 import { BedrockGrid, buildEmptyGrid } from "./components/BedrockGrid.js";
 import { ConfigPanel } from "./components/ConfigPanel.js";
 import { ResultsPanel } from "./components/ResultsPanel.js";
 import { SeedPanel } from "./components/SeedPanel.js";
 import { usePatternAnalysis } from "./hooks/usePatternAnalysis.js";
 
+// Y-level ranges per edition (Java 1.18+ floor at -64, Bedrock floor at 0)
+const Y_RANGES: Record<Edition, { floor: number; max: number; default: number }> = {
+  java:    { floor: -64, max: -60, default: -63 },
+  bedrock: { floor: 0,   max: 4,   default: 3   },
+};
+
 const DEFAULT_ROWS = 8;
 const DEFAULT_COLS = 8;
-
 type Mode = "coords" | "seed";
 
 export default function App() {
-  const [mode, setMode] = useState<Mode>("coords");
-  const [edition, setEdition] = useState<Edition>("java");
-  const [yLevel, setYLevel] = useState(-63);
+  const [mode, setMode]           = useState<Mode>("coords");
+  const [edition, setEdition]     = useState<Edition>("java");
+  const [yLevel, setYLevel]       = useState(Y_RANGES.java.default);
   const [worldSeed, setWorldSeed] = useState("");
   const [searchRadius, setSearchRadius] = useState(1000);
-  const [loose, setLoose] = useState(false);
-  const [rows, setRows] = useState(DEFAULT_ROWS);
-  const [cols, setCols] = useState(DEFAULT_COLS);
-  const [grid, setGrid] = useState<Grid>(() => buildEmptyGrid(DEFAULT_ROWS, DEFAULT_COLS));
-  const [anchorX, setAnchorX] = useState(0);
-  const [anchorZ, setAnchorZ] = useState(0);
-  const [seedMin, setSeedMin] = useState("0");
-  const [seedMax, setSeedMax] = useState("100000000");
+  const [loose, setLoose]         = useState(false);
+  const [rows, setRows]           = useState(DEFAULT_ROWS);
+  const [cols, setCols]           = useState(DEFAULT_COLS);
+  const [grid, setGrid]           = useState<Grid>(() => buildEmptyGrid(DEFAULT_ROWS, DEFAULT_COLS));
+  const [anchorX, setAnchorX]     = useState(0);
+  const [anchorZ, setAnchorZ]     = useState(0);
+  const [seedMin, setSeedMin]     = useState("0");
+  const [seedMax, setSeedMax]     = useState("100000000");
 
   const { status, result, seedResult, error, runAnalyse, runSeed, reset } = usePatternAnalysis();
 
-  const floorY = edition === "java" ? JAVA_FLOOR_Y : BEDROCK_FLOOR_Y;
-  const maxY   = edition === "java" ? JAVA_MAX_Y   : BEDROCK_MAX_Y;
+  const yRange = Y_RANGES[edition];
 
   function handleEditionChange(e: Edition) {
     setEdition(e);
-    setYLevel(e === "java" ? JAVA_FLOOR_Y + 1 : BEDROCK_FLOOR_Y + 1);
+    setYLevel(Y_RANGES[e].default);
     reset();
   }
 
@@ -71,12 +74,8 @@ export default function App() {
             </div>
           </div>
           <div className="mode-tabs">
-            <button className={`mode-tab ${mode === "coords" ? "active" : ""}`} onClick={() => { setMode("coords"); reset(); }}>
-              Find Coords
-            </button>
-            <button className={`mode-tab ${mode === "seed" ? "active" : ""}`} onClick={() => { setMode("seed"); reset(); }}>
-              Find Seed
-            </button>
+            <button className={`mode-tab ${mode === "coords" ? "active" : ""}`} onClick={() => { setMode("coords"); reset(); }}>Find Coords</button>
+            <button className={`mode-tab ${mode === "seed" ? "active" : ""}`} onClick={() => { setMode("seed"); reset(); }}>Find Seed</button>
           </div>
         </div>
       </header>
@@ -87,8 +86,8 @@ export default function App() {
             mode={mode}
             edition={edition}
             yLevel={yLevel}
-            floorY={floorY}
-            maxY={maxY}
+            floorY={yRange.floor}
+            maxY={yRange.max}
             worldSeed={worldSeed}
             searchRadius={searchRadius}
             loose={loose}
@@ -111,29 +110,16 @@ export default function App() {
             onSeedMaxChange={setSeedMax}
           />
 
-          <BedrockGrid
-            rows={rows}
-            cols={cols}
-            grid={grid}
-            onChange={g => { setGrid(g); reset(); }}
-          />
+          <BedrockGrid rows={rows} cols={cols} grid={grid} onChange={g => { setGrid(g); reset(); }} />
 
           <div className="analyse-bar">
             <span className="cell-count">{knownCells} / {rows * cols} cells filled</span>
             {mode === "coords" ? (
-              <button
-                className="btn-analyse"
-                onClick={handleAnalyse}
-                disabled={knownCells === 0 || !worldSeed.trim() || status === "loading"}
-              >
+              <button className="btn-analyse" onClick={handleAnalyse} disabled={knownCells === 0 || !worldSeed.trim() || status === "loading"}>
                 {status === "loading" ? "Scanning…" : "Analyse →"}
               </button>
             ) : (
-              <button
-                className="btn-analyse"
-                onClick={handleSeedFind}
-                disabled={knownCells === 0 || status === "loading"}
-              >
+              <button className="btn-analyse" onClick={handleSeedFind} disabled={knownCells === 0 || status === "loading"}>
                 {status === "loading" ? "Searching seeds…" : "Find Seed →"}
               </button>
             )}
@@ -143,8 +129,7 @@ export default function App() {
         <section className="panel panel--right">
           {mode === "coords"
             ? <ResultsPanel status={status} result={result} error={error} />
-            : <SeedPanel status={status} result={seedResult} error={error} />
-          }
+            : <SeedPanel status={status} result={seedResult} error={error} />}
         </section>
       </main>
     </div>
