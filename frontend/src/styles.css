@@ -613,3 +613,68 @@ html, body, #root {
 
 /* Pct label under confidence bar */
 .pct { font-family: var(--font-mono); font-size: 10px; margin-top: 2px; }
+
+/* =============================================================================
+   Y-level selector additions
+============================================================================= */
+.ylevel-btn { position: relative; }
+.ylevel-star {
+  position: absolute;
+  top: -4px;
+  right: -2px;
+  font-size: 8px;
+  color: #facc15;
+}
+.ylevel-desc {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.ylevel-name { font-weight: 600; font-size: 12px; }
+.ylevel-pct  { font-size: 11px; color: var(--text-secondary); }
+.ylevel-rec  { font-size: 11px; color: #facc15; margin-left: auto; }
+
+/* Config badges */
+.config-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--bg-3);
+  color: var(--text-secondary);
+  margin-left: 6px;
+  vertical-align: middle;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.config-badge.required { background: rgba(248,113,113,.15); color: var(--red); }
+.config-error { font-size: 11px; color: var(--red); margin-top: 3px; }
+.config-input--error { border-color: var(--red) !important; }
+
+/* Radius row */
+.radius-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+
+/* Callout box */
+.config-callout {
+  background: rgba(91,140,255,.08);
+  border: 1px solid rgba(91,140,255,.25);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.config-callout strong { color: var(--text-primary); }
+
+/* Grid legend hint */
+.legend-hint {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-dim);
+}
