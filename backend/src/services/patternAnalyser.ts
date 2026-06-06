@@ -1,7 +1,6 @@
 import {
   scorePattern,
   getOrientations,
-  isBedrockAt,
   type Edition,
   type Grid,
   type AnalyseResponse,
@@ -31,10 +30,30 @@ interface SeedParams {
   seedMax?: bigint;
 }
 
+export interface ProgressEvent {
+  type: "progress";
+  pct: number;          // 0–100
+  checked: number;
+  total: number;
+  found: number;
+}
+
+export interface ResultEvent {
+  type: "result";
+  candidates: Candidate[];
+  searchedPositions: number;
+  durationMs: number;
+}
+
+export type StreamEvent = ProgressEvent | ResultEvent;
+
 // ---------------------------------------------------------------------------
-// Coordinate search
+// Streaming coordinate search — calls onProgress periodically
 // ---------------------------------------------------------------------------
-export async function analysePattern(params: AnalyseParams): Promise<AnalyseResponse> {
+export async function analysePatternStream(
+  params: AnalyseParams,
+  onEvent: (e: StreamEvent) => void
+): Promise<void> {
   const start = Date.now();
   const {
     grid, yLevel, edition, worldSeed,
@@ -44,29 +63,31 @@ export async function analysePattern(params: AnalyseParams): Promise<AnalyseResp
   } = params;
 
   const knownCells = grid.flat().filter(v => v !== -1).length;
-  if (knownCells === 0) return { candidates: [], searchedPositions: 0, durationMs: 0 };
+  if (knownCells === 0) {
+    onEvent({ type: "result", candidates: [], searchedPositions: 0, durationMs: 0 });
+    return;
+  }
 
-  // In loose mode we try all 8 orientations of the pattern
   const grids = loose ? getOrientations(grid) : [grid];
-
-  const gridRows = grid.length;
-  const gridCols = grid[0].length;
-  const halfW = Math.floor(gridCols / 2);
-  const halfH = Math.floor(gridRows / 2);
-
   const THRESHOLD = loose ? 0.75 : 0.85;
   const candidates: Candidate[] = [];
-  let searchedPositions = 0;
+
+  const diameter = searchRadius * 2 + 1;
+  const total = diameter * diameter;
+  let checked = 0;
+  const REPORT_EVERY = Math.max(1000, Math.floor(total / 200)); // ~200 progress updates
 
   for (let z = originZ - searchRadius; z <= originZ + searchRadius; z++) {
     for (let x = originX - searchRadius; x <= originX + searchRadius; x++) {
-      searchedPositions++;
+      checked++;
       let bestMatch = 0, bestTotal = 0;
 
       for (const g of grids) {
         const rh = Math.floor(g.length / 2);
         const rw = Math.floor(g[0].length / 2);
-        const { matchedCells, totalCells } = scorePattern(edition, worldSeed, g, x - rw, z - rh, yLevel);
+        const { matchedCells, totalCells } = scorePattern(
+          edition, worldSeed, g, x - rw, z - rh, yLevel
+        );
         if (totalCells > 0 && matchedCells / totalCells > bestMatch / Math.max(bestTotal, 1)) {
           bestMatch = matchedCells;
           bestTotal = totalCells;
@@ -76,21 +97,35 @@ export async function analysePattern(params: AnalyseParams): Promise<AnalyseResp
       if (bestTotal > 0 && bestMatch / bestTotal >= THRESHOLD) {
         candidates.push({ x, z, confidence: bestMatch / bestTotal, matchedCells: bestMatch, totalCells: bestTotal });
       }
+
+      if (checked % REPORT_EVERY === 0) {
+        onEvent({
+          type: "progress",
+          pct: Math.round((checked / total) * 100),
+          checked,
+          total,
+          found: candidates.length,
+        });
+      }
     }
   }
 
   candidates.sort((a, b) => b.confidence - a.confidence);
   const seen = new Set<string>();
-  const deduped = candidates.filter(c => {
-    const k = `${c.x},${c.z}`;
-    return seen.has(k) ? false : (seen.add(k), true);
-  }).slice(0, 20);
+  const deduped = candidates
+    .filter(c => { const k = `${c.x},${c.z}`; return seen.has(k) ? false : (seen.add(k), true); })
+    .slice(0, 20);
 
-  return { candidates: deduped, searchedPositions, durationMs: Date.now() - start };
+  onEvent({
+    type: "result",
+    candidates: deduped,
+    searchedPositions: checked,
+    durationMs: Date.now() - start,
+  });
 }
 
 // ---------------------------------------------------------------------------
-// Seed finder (inverse mode)
+// Seed finder
 // ---------------------------------------------------------------------------
 export async function findSeed(params: SeedParams): Promise<SeedResponse> {
   const start = Date.now();

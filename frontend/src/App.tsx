@@ -6,7 +6,6 @@ import { ResultsPanel } from "./components/ResultsPanel.js";
 import { SeedPanel } from "./components/SeedPanel.js";
 import { usePatternAnalysis } from "./hooks/usePatternAnalysis.js";
 
-// Y-level ranges per edition (Java 1.18+ floor at -64, Bedrock floor at 0)
 const Y_RANGES: Record<Edition, { floor: number; max: number; default: number }> = {
   java:    { floor: -64, max: -60, default: -63 },
   bedrock: { floor: 0,   max: 4,   default: 3   },
@@ -17,45 +16,37 @@ const DEFAULT_COLS = 8;
 type Mode = "coords" | "seed";
 
 export default function App() {
-  const [mode, setMode]           = useState<Mode>("coords");
-  const [edition, setEdition]     = useState<Edition>("java");
-  const [yLevel, setYLevel]       = useState(Y_RANGES.java.default);
-  const [worldSeed, setWorldSeed] = useState("");
+  const [mode, setMode]                 = useState<Mode>("coords");
+  const [edition, setEdition]           = useState<Edition>("java");
+  const [yLevel, setYLevel]             = useState(Y_RANGES.java.default);
+  const [worldSeed, setWorldSeed]       = useState("");
   const [searchRadius, setSearchRadius] = useState(1000);
-  const [loose, setLoose]         = useState(false);
-  const [rows, setRows]           = useState(DEFAULT_ROWS);
-  const [cols, setCols]           = useState(DEFAULT_COLS);
-  const [grid, setGrid]           = useState<Grid>(() => buildEmptyGrid(DEFAULT_ROWS, DEFAULT_COLS));
-  const [anchorX, setAnchorX]     = useState(0);
-  const [anchorZ, setAnchorZ]     = useState(0);
-  const [seedMin, setSeedMin]     = useState("0");
-  const [seedMax, setSeedMax]     = useState("100000000");
+  const [loose, setLoose]               = useState(false);
+  const [rows, setRows]                 = useState(DEFAULT_ROWS);
+  const [cols, setCols]                 = useState(DEFAULT_COLS);
+  const [grid, setGrid]                 = useState<Grid>(() => buildEmptyGrid(DEFAULT_ROWS, DEFAULT_COLS));
+  const [anchorX, setAnchorX]           = useState(0);
+  const [anchorZ, setAnchorZ]           = useState(0);
+  const [seedMin, setSeedMin]           = useState("0");
+  const [seedMax, setSeedMax]           = useState("100000000");
 
-  const { status, result, seedResult, error, runAnalyse, runSeed, reset } = usePatternAnalysis();
+  const { status, result, seedResult, error, progress, runAnalyse, runSeed, reset } = usePatternAnalysis();
 
   const yRange = Y_RANGES[edition];
 
   function handleEditionChange(e: Edition) {
-    setEdition(e);
-    setYLevel(Y_RANGES[e].default);
-    reset();
+    setEdition(e); setYLevel(Y_RANGES[e].default); reset();
   }
-
   function handleRowsChange(v: number) {
-    const c = Math.max(2, Math.min(32, v));
-    setRows(c); setGrid(buildEmptyGrid(c, cols)); reset();
+    const c = Math.max(2, Math.min(32, v)); setRows(c); setGrid(buildEmptyGrid(c, cols)); reset();
   }
-
   function handleColsChange(v: number) {
-    const c = Math.max(2, Math.min(32, v));
-    setCols(c); setGrid(buildEmptyGrid(rows, c)); reset();
+    const c = Math.max(2, Math.min(32, v)); setCols(c); setGrid(buildEmptyGrid(rows, c)); reset();
   }
-
   function handleAnalyse() {
     if (!worldSeed.trim()) return;
     runAnalyse({ grid, yLevel, edition, worldSeed, searchRadius, loose });
   }
-
   function handleSeedFind() {
     runSeed({ grid, yLevel, edition, anchorX, anchorZ, seedMin, seedMax });
   }
@@ -83,20 +74,12 @@ export default function App() {
       <main className="app-main">
         <section className="panel panel--left">
           <ConfigPanel
-            mode={mode}
-            edition={edition}
-            yLevel={yLevel}
-            floorY={yRange.floor}
-            maxY={yRange.max}
-            worldSeed={worldSeed}
-            searchRadius={searchRadius}
-            loose={loose}
-            rows={rows}
-            cols={cols}
-            anchorX={anchorX}
-            anchorZ={anchorZ}
-            seedMin={seedMin}
-            seedMax={seedMax}
+            mode={mode} edition={edition} yLevel={yLevel}
+            floorY={yRange.floor} maxY={yRange.max}
+            worldSeed={worldSeed} searchRadius={searchRadius} loose={loose}
+            rows={rows} cols={cols}
+            anchorX={anchorX} anchorZ={anchorZ}
+            seedMin={seedMin} seedMax={seedMax}
             onEditionChange={handleEditionChange}
             onYLevelChange={v => { setYLevel(v); reset(); }}
             onWorldSeedChange={v => { setWorldSeed(v); reset(); }}
@@ -109,17 +92,17 @@ export default function App() {
             onSeedMinChange={setSeedMin}
             onSeedMaxChange={setSeedMax}
           />
-
           <BedrockGrid rows={rows} cols={cols} grid={grid} onChange={g => { setGrid(g); reset(); }} />
-
           <div className="analyse-bar">
             <span className="cell-count">{knownCells} / {rows * cols} cells filled</span>
             {mode === "coords" ? (
-              <button className="btn-analyse" onClick={handleAnalyse} disabled={knownCells === 0 || !worldSeed.trim() || status === "loading"}>
-                {status === "loading" ? "Scanning…" : "Analyse →"}
+              <button className="btn-analyse" onClick={handleAnalyse}
+                disabled={knownCells === 0 || !worldSeed.trim() || status === "loading"}>
+                {status === "loading" ? `Scanning… ${progress?.pct ?? 0}%` : "Analyse →"}
               </button>
             ) : (
-              <button className="btn-analyse" onClick={handleSeedFind} disabled={knownCells === 0 || status === "loading"}>
+              <button className="btn-analyse" onClick={handleSeedFind}
+                disabled={knownCells === 0 || status === "loading"}>
                 {status === "loading" ? "Searching seeds…" : "Find Seed →"}
               </button>
             )}
@@ -128,7 +111,7 @@ export default function App() {
 
         <section className="panel panel--right">
           {mode === "coords"
-            ? <ResultsPanel status={status} result={result} error={error} />
+            ? <ResultsPanel status={status} result={result} error={error} progress={progress} />
             : <SeedPanel status={status} result={seedResult} error={error} />}
         </section>
       </main>

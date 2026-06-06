@@ -1,15 +1,18 @@
 import { Router } from "express";
 import { z } from "zod";
-import { analysePattern, findSeed } from "../services/patternAnalyser.js";
+import { analysePatternStream, findSeed } from "../services/patternAnalyser.js";
 
 export const patternRouter = Router();
 
 const CellValue = z.union([z.literal(0), z.literal(1), z.literal(-1)]);
-
 const gridSchema = z
   .array(z.array(CellValue).min(1).max(64))
   .min(1).max(64)
-  .refine(g => g.every(r => r.length === g[0].length), "Grid rows must all be the same length");
+  .refine(g => g.every(r => r.length === g[0].length), "Grid rows must be equal length");
+
+function formatZodError(err: z.ZodError) {
+  return err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ");
+}
 
 const analyseSchema = z.object({
   grid: gridSchema,
@@ -32,10 +35,9 @@ const seedSchema = z.object({
   seedMax: z.string().default("100000000"),
 });
 
-function formatZodError(err: z.ZodError): string {
-  return err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ");
-}
-
+// ---------------------------------------------------------------------------
+// POST /api/analyse — streaming SSE response
+// ---------------------------------------------------------------------------
 patternRouter.post("/analyse", async (req, res, next) => {
   try {
     const parsed = analyseSchema.safeParse(req.body);
@@ -45,12 +47,31 @@ patternRouter.post("/analyse", async (req, res, next) => {
     const { worldSeed, ...rest } = parsed.data;
     let seed: bigint;
     try { seed = BigInt(worldSeed); }
-    catch { return res.status(400).json({ error: "World seed must be a valid integer (e.g. 1234567890)" }); }
-    const result = await analysePattern({ ...rest, worldSeed: seed });
-    res.json(result);
+    catch { return res.status(400).json({ error: "Seed must be a valid integer (e.g. 1234567890)" }); }
+
+    // Set up SSE
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // disable Nginx buffering for SSE
+    res.flushHeaders();
+
+    const send = (data: object) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    await analysePatternStream(
+      { ...rest, worldSeed: seed },
+      (event) => send(event)
+    );
+
+    res.end();
   } catch (err) { next(err); }
 });
 
+// ---------------------------------------------------------------------------
+// POST /api/seed
+// ---------------------------------------------------------------------------
 patternRouter.post("/seed", async (req, res, next) => {
   try {
     const parsed = seedSchema.safeParse(req.body);
