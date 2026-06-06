@@ -4,14 +4,14 @@
   "description": "Minecraft coordinate finder using bedrock pattern recognition",
   "private": true,
   "workspaces": [
+    "shared",
     "backend",
-    "frontend",
-    "shared"
+    "frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
-    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
-    "test": "npm run test --workspace=backend && npm run test --workspace=frontend",
+    "dev": "concurrently \"npm run dev -w @bedrock-finder/backend\" \"npm run dev -w @bedrock-finder/frontend\"",
+    "build": "npm run build -w @bedrock-finder/shared && npm run build -w @bedrock-finder/backend && npm run build -w @bedrock-finder/frontend",
+    "test": "npm run test -w @bedrock-finder/backend",
     "lint": "eslint . --ext .ts,.tsx --ignore-pattern node_modules",
     "format": "prettier --write ."
   },
