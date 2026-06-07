@@ -27,7 +27,7 @@ export default function App() {
   const youCol = center(size);
 
   // Shared
-  const [yLevel,  setYLevel]  = useState(Y_CONFIG.java.best);
+  const [yLevel, setYLevel] = useState<number>(Y_CONFIG.java.best);
 
   // Coord tab
   const [seed,    setSeed]    = useState("");
